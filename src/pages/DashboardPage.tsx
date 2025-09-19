@@ -85,6 +85,10 @@ const DashboardPage: React.FC = () => {
       return { success: false, message: 'You must be logged in to book a bodyguard.' };
     }
 
+    if (!clientProfile) {
+      return { success: false, message: 'Please complete your profile setup before booking.' };
+    }
+
     try {
       // Get the bodyguard details for pricing
       const bodyguard = bodyguards.find(bg => bg.id === bodyguardId);
@@ -279,6 +283,7 @@ const DashboardPage: React.FC = () => {
                 key={bodyguard.id}
                 bodyguard={bodyguard}
                 onBook={handleBooking}
+                canBook={!!clientProfile}
               />
             ))}
           </div>

@@ -16,9 +16,10 @@ import {
 interface BodyguardCardProps {
   bodyguard: Bodyguard;
   onBook: (bodyguardId: string) => Promise<{ success: boolean; message: string }>;
+  canBook: boolean;
 }
 
-const BodyguardCard: React.FC<BodyguardCardProps> = ({ bodyguard, onBook }) => {
+const BodyguardCard: React.FC<BodyguardCardProps> = ({ bodyguard, onBook, canBook }) => {
   const [isBooking, setIsBooking] = useState(false);
   const [bookingStatus, setBookingStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -188,7 +189,7 @@ const BodyguardCard: React.FC<BodyguardCardProps> = ({ bodyguard, onBook }) => {
         <Button
           variant="primary"
           fullWidth
-          disabled={isBooking || !bodyguard.is_available}
+          disabled={isBooking || !bodyguard.is_available || !canBook}
           onClick={handleBooking}
           className="group relative overflow-hidden"
         >
@@ -210,6 +211,9 @@ const BodyguardCard: React.FC<BodyguardCardProps> = ({ bodyguard, onBook }) => {
             Currently unavailable
           </p>
         )}
+
+        {!canBook && bodyguard.is_available && (
+          <p className="text-center text-sm text-neutral-500 mt-2">
       </div>
 
       {/* Hover Gradient */}
