@@ -481,8 +481,8 @@ const BecomeBodyguard: React.FC = () => {
                         required: 'Government ID is required',
                         validate: {
                           fileSize: (files) => {
-                            if (files && files[0] && files[0].size > 5 * 1024 * 1024) {
-                              return 'File size must be less than 5MB';
+                            if (files && files[0] && files[0].size > 300 * 1024) {
+                              return 'File size must be less than 300KB';
                             }
                             return true;
                           }
@@ -503,7 +503,7 @@ const BecomeBodyguard: React.FC = () => {
                     <p className="mt-1 text-sm text-red-600">{errors.government_id_file.message}</p>
                   )}
                   <p className="mt-2 text-sm text-neutral-500">
-                    Upload a clear image or PDF of your government-issued ID. Maximum file size: 5MB.
+                    Upload a clear image or PDF of your government-issued ID. Maximum file size: 300KB.
                   </p>
                 </div>
               </div>
