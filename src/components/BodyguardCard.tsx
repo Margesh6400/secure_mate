@@ -8,44 +8,18 @@ import {
   Star, 
   Shield, 
   User,
-  Calendar,
-  CheckCircle,
-  AlertCircle
+  Calendar
 } from 'lucide-react';
 
 interface BodyguardCardProps {
   bodyguard: Bodyguard;
-  onBook: (bodyguardId: string) => Promise<{ success: boolean; message: string }>;
-  canBook: boolean;
+  onBookClick: (bodyguard: Bodyguard) => void;
+  isCurrentlyBooked: boolean;
 }
 
-const BodyguardCard: React.FC<BodyguardCardProps> = ({ bodyguard, onBook, canBook }) => {
-  const [isBooking, setIsBooking] = useState(false);
-  const [bookingStatus, setBookingStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
-
-  const handleBooking = async () => {
-    setIsBooking(true);
-    setBookingStatus(null);
-
-    try {
-      const result = await onBook(bodyguard.id);
-      setBookingStatus({
-        type: result.success ? 'success' : 'error',
-        message: result.message
-      });
-
-      // Clear status after 3 seconds
-      setTimeout(() => {
-        setBookingStatus(null);
-      }, 3000);
-    } catch (error) {
-      setBookingStatus({
-        type: 'error',
-        message: 'An unexpected error occurred. Please try again.'
-      });
-    } finally {
-      setIsBooking(false);
-    }
+const BodyguardCard: React.FC<BodyguardCardProps> = ({ bodyguard, onBookClick, isCurrentlyBooked }) => {
+  const handleBookClick = () => {
+    onBookClick(bodyguard);
   };
 
   return (
@@ -54,21 +28,19 @@ const BodyguardCard: React.FC<BodyguardCardProps> = ({ bodyguard, onBook, canBoo
       <div className="absolute top-0 left-0 w-16 h-16 border-t-2 border-l-2 border-primary/20 rounded-tl-2xl transition-all duration-300 group-hover:border-accent/50 group-hover:scale-105"></div>
       <div className="absolute bottom-0 right-0 w-16 h-16 border-b-2 border-r-2 border-primary/20 rounded-br-2xl transition-all duration-300 group-hover:border-accent/50 group-hover:scale-105"></div>
 
-      {/* Status Messages */}
-      {bookingStatus && (
-        <div className={`absolute top-4 left-4 right-4 z-20 p-3 rounded-lg flex items-center text-sm ${
-          bookingStatus.type === 'success' 
-            ? 'bg-green-50 text-green-800 border border-green-200' 
-            : 'bg-red-50 text-red-800 border border-red-200'
+      {/* Availability Badge */}
+      <div className="absolute top-4 right-4 z-20">
+        <div className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${
+          isCurrentlyBooked
+            ? 'bg-red-100 text-red-800 border-red-200'
+            : 'bg-green-100 text-green-800 border-green-200'
         }`}>
-          {bookingStatus.type === 'success' ? (
-            <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
-          ) : (
-            <AlertCircle className="w-4 h-4 mr-2 text-red-600" />
-          )}
-          <p>{bookingStatus.message}</p>
+          <div className={`w-2 h-2 rounded-full mr-2 ${
+            isCurrentlyBooked ? 'bg-red-500' : 'bg-green-500 animate-pulse'
+          }`}></div>
+          {isCurrentlyBooked ? 'Unavailable' : 'Available'}
         </div>
-      )}
+      </div>
 
       <div className="p-6">
         {/* Header with Photo and Basic Info */}
@@ -89,8 +61,6 @@ const BodyguardCard: React.FC<BodyguardCardProps> = ({ bodyguard, onBook, canBoo
                 </div>
               )}
             </div>
-            {/* Availability Indicator */}
-            <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 border-2 border-white rounded-full animate-pulse"></div>
           </div>
 
           {/* Basic Info */}
@@ -146,6 +116,30 @@ const BodyguardCard: React.FC<BodyguardCardProps> = ({ bodyguard, onBook, canBoo
               </p>
             </div>
           </div>
+
+          <div className="flex items-center space-x-2">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <IndianRupee className="w-4 h-4 text-primary" />
+            </div>
+            <div>
+              <p className="text-xs text-neutral-500">Hourly Rate</p>
+              <p className="text-sm font-medium text-neutral-700">
+                ₹{bodyguard.pricing_hourly}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <div className="p-2 rounded-lg bg-accent/10">
+              <IndianRupee className="w-4 h-4 text-accent" />
+            </div>
+            <div>
+              <p className="text-xs text-neutral-500">Daily Rate</p>
+              <p className="text-sm font-medium text-neutral-700">
+                ₹{bodyguard.pricing_daily}
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Pricing */}
@@ -155,14 +149,14 @@ const BodyguardCard: React.FC<BodyguardCardProps> = ({ bodyguard, onBook, canBoo
               <div className="flex items-center space-x-1">
                 <IndianRupee className="w-4 h-4 text-primary" />
                 <span className="text-lg font-bold text-primary">
-                  {bodyguard.hourly_rate}
+                  {bodyguard.pricing_hourly}
                 </span>
                 <span className="text-sm text-neutral-600">/hour</span>
               </div>
               <div className="flex items-center space-x-1 mt-1">
                 <IndianRupee className="w-3 h-3 text-neutral-500" />
                 <span className="text-sm text-neutral-600">
-                  {bodyguard.full_day_rate} full day
+                  {bodyguard.pricing_daily} full day
                 </span>
               </div>
             </div>
@@ -189,32 +183,17 @@ const BodyguardCard: React.FC<BodyguardCardProps> = ({ bodyguard, onBook, canBoo
         <Button
           variant="primary"
           fullWidth
-          disabled={isBooking || !bodyguard.is_available || !canBook}
-          onClick={handleBooking}
+          disabled={isCurrentlyBooked || !bodyguard.is_available}
+          onClick={handleBookClick}
           className="group relative overflow-hidden"
         >
-          {isBooking ? (
-            <>
-              <div className="w-5 h-5 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              Booking...
-            </>
-          ) : (
-            <>
-              <Calendar className="w-5 h-5 mr-2 transition-transform duration-300 group-hover:scale-110" />
-              Book Now
-            </>
-          )}
+          <Calendar className="w-5 h-5 mr-2 transition-transform duration-300 group-hover:scale-110" />
+          {isCurrentlyBooked ? 'Currently Booked' : 'Book Bodyguard'}
         </Button>
 
-        {!bodyguard.is_available && (
+        {isCurrentlyBooked && (
           <p className="text-center text-sm text-neutral-500 mt-2">
-            Currently unavailable
-          </p>
-        )}
-
-        {!canBook && bodyguard.is_available && (
-          <p className="text-center text-sm text-neutral-500 mt-2">
-            Please complete your profile to book
+            This bodyguard is currently on another assignment
           </p>
         )}
       </div>

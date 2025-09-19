@@ -51,8 +51,8 @@ export interface Bodyguard {
   years_experience: number;
   specialization: string;
   base_city: string;
-  hourly_rate: number;
-  full_day_rate: number;
+  pricing_hourly: number;
+  pricing_daily: number;
   photo_url?: string;
   government_id_url: string;
   is_available: boolean;
@@ -65,13 +65,14 @@ export interface Booking {
   id?: string;
   client_id: string;
   bodyguard_id: string;
-  booking_date: string;
-  duration_hours: number;
+  booking_start: string;
+  booking_end: string;
   total_amount: number;
-  status: 'pending' | 'confirmed' | 'rejected' | 'completed' | 'cancelled';
+  status: 'pending' | 'confirmed' | 'rejected' | 'cancelled' | 'completed';
   notes?: string;
   created_at?: string;
   updated_at?: string;
+  bodyguard?: Bodyguard; // For joined queries
 }
 
 // Auth helper functions
