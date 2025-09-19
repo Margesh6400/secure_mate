@@ -214,6 +214,9 @@ const BodyguardCard: React.FC<BodyguardCardProps> = ({ bodyguard, onBook, canBoo
 
         {!canBook && bodyguard.is_available && (
           <p className="text-center text-sm text-neutral-500 mt-2">
+            Please complete your profile to book
+          </p>
+        )}
       </div>
 
       {/* Hover Gradient */}
