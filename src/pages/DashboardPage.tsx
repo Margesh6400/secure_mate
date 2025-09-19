@@ -85,6 +85,10 @@ const DashboardPage: React.FC = () => {
       return { success: false, message: 'You must be logged in to book a bodyguard.' };
     }
 
+    if (!clientProfile) {
+      return { success: false, message: 'Your profile is incomplete. Please contact support to set up your client profile before booking.' };
+    }
+
     try {
       // Get the bodyguard details for pricing
       const bodyguard = bodyguards.find(bg => bg.id === bodyguardId);
@@ -196,6 +200,21 @@ const DashboardPage: React.FC = () => {
 
       {/* Main Content */}
       <main className="container-custom py-8">
+        {/* Client Profile Missing Warning */}
+        {!loading && !clientProfile && (
+          <div className="mb-8 p-6 rounded-lg bg-yellow-50 text-yellow-800 border border-yellow-200">
+            <div className="flex items-center">
+              <AlertCircle className="w-5 h-5 mr-3 text-yellow-600" />
+              <div>
+                <h3 className="font-medium">Profile Setup Required</h3>
+                <p className="mt-1 text-sm">
+                  Your client profile is not set up yet. Please contact support to complete your profile setup before you can book bodyguards.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Search and Filters */}
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-neutral-100/50 shadow-xl p-6 mb-8">
           <div className="flex flex-col md:flex-row gap-4">
