@@ -56,7 +56,7 @@ const DashboardPage: React.FC = () => {
     fetchClientProfile();
   }, [user]);
 
-  // Fetch bodyguards
+  // Fetch bodyguards and current bookings
   const fetchData = async () => {
     setLoading(true);
     setError(null);
@@ -102,7 +102,7 @@ const DashboardPage: React.FC = () => {
     fetchData();
   }, []);
 
-  // Set up real-time subscriptions
+  // Set up real-time subscriptions for bookings
   useEffect(() => {
     if (!user) return;
 
@@ -122,17 +122,19 @@ const DashboardPage: React.FC = () => {
         }
       )
       .subscribe();
+
     return () => {
       bookingsSubscription.unsubscribe();
     };
   }, [user]);
 
-  // Handle booking submission
+  // Handle booking submission with conflict checking
   const handleBookingSubmit = async (bookingData: {
     bodyguardId: string;
     startTime: string;
     endTime: string;
     totalAmount: number;
+    bookingType: 'hourly' | 'fullday';
   }): Promise<{ success: boolean; message: string }> => {
     if (!user) {
       return { success: false, message: 'You must be logged in to book a bodyguard.' };
@@ -183,7 +185,7 @@ const DashboardPage: React.FC = () => {
 
       return { 
         success: true, 
-        message: 'Booking request submitted successfully! You will be contacted by the bodyguard soon.' 
+        message: `${bookingData.bookingType === 'hourly' ? 'Hourly' : 'Full day'} booking request submitted successfully! You will be contacted by the bodyguard soon.` 
       };
     } catch (error) {
       console.error('Booking error:', error);
@@ -310,108 +312,108 @@ const DashboardPage: React.FC = () => {
 
         {activeTab === 'browse' ? (
           <>
-        {/* Search and Filters */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-neutral-100/50 shadow-xl p-6 mb-8">
-          <div className="flex flex-col md:flex-row gap-4">
-            {/* Search */}
-            <div className="flex-1 relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-5 w-5 text-neutral-400" />
+            {/* Search and Filters */}
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-neutral-100/50 shadow-xl p-6 mb-8">
+              <div className="flex flex-col md:flex-row gap-4">
+                {/* Search */}
+                <div className="flex-1 relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search className="h-5 w-5 text-neutral-400" />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Search by name or specialization..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="block w-full pl-10 pr-3 py-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent bg-white/70 backdrop-blur-sm"
+                  />
+                </div>
+
+                {/* City Filter */}
+                <div className="relative">
+                  <select
+                    value={filterCity}
+                    onChange={(e) => setFilterCity(e.target.value)}
+                    className="block w-full px-3 py-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent bg-white/70 backdrop-blur-sm min-w-[150px]"
+                  >
+                    <option value="">All Cities</option>
+                    {cities.map(city => (
+                      <option key={city} value={city}>{city}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Specialization Filter */}
+                <div className="relative">
+                  <select
+                    value={filterSpecialization}
+                    onChange={(e) => setFilterSpecialization(e.target.value)}
+                    className="block w-full px-3 py-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent bg-white/70 backdrop-blur-sm min-w-[180px]"
+                  >
+                    <option value="">All Specializations</option>
+                    {specializations.map(spec => (
+                      <option key={spec} value={spec}>{spec}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Refresh Button */}
+                <Button
+                  variant="outline"
+                  onClick={fetchData}
+                  className="group"
+                >
+                  <RefreshCw className="w-4 h-4 mr-2 transition-transform duration-300 group-hover:rotate-180" />
+                  Refresh
+                </Button>
               </div>
-              <input
-                type="text"
-                placeholder="Search by name or specialization..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="block w-full pl-10 pr-3 py-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent bg-white/70 backdrop-blur-sm"
-              />
             </div>
 
-            {/* City Filter */}
-            <div className="relative">
-              <select
-                value={filterCity}
-                onChange={(e) => setFilterCity(e.target.value)}
-                className="block w-full px-3 py-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent bg-white/70 backdrop-blur-sm min-w-[150px]"
-              >
-                <option value="">All Cities</option>
-                {cities.map(city => (
-                  <option key={city} value={city}>{city}</option>
+            {/* Error Message */}
+            {error && (
+              <div className="mb-8 p-4 rounded-lg bg-red-50 text-red-800 border border-red-200 flex items-center">
+                <AlertCircle className="w-5 h-5 mr-3 text-red-600" />
+                <p>{error}</p>
+              </div>
+            )}
+
+            {/* Results Header */}
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-primary">
+                Available Bodyguards
+              </h2>
+              <div className="text-sm text-neutral-600">
+                {filteredBodyguards.length} of {bodyguards.length} bodyguards
+              </div>
+            </div>
+
+            {/* Bodyguards Grid */}
+            {filteredBodyguards.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {filteredBodyguards.map((bodyguard) => (
+                  <BodyguardCard
+                    key={bodyguard.id}
+                    bodyguard={bodyguard}
+                    onBookClick={handleBookClick}
+                    isCurrentlyBooked={isBodyguardCurrentlyBooked(bodyguard.id)}
+                  />
                 ))}
-              </select>
-            </div>
-
-            {/* Specialization Filter */}
-            <div className="relative">
-              <select
-                value={filterSpecialization}
-                onChange={(e) => setFilterSpecialization(e.target.value)}
-                className="block w-full px-3 py-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent bg-white/70 backdrop-blur-sm min-w-[180px]"
-              >
-                <option value="">All Specializations</option>
-                {specializations.map(spec => (
-                  <option key={spec} value={spec}>{spec}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Refresh Button */}
-            <Button
-              variant="outline"
-              onClick={fetchData}
-              className="group"
-            >
-              <RefreshCw className="w-4 h-4 mr-2 transition-transform duration-300 group-hover:rotate-180" />
-              Refresh
-            </Button>
-          </div>
-        </div>
-
-        {/* Error Message */}
-        {error && (
-          <div className="mb-8 p-4 rounded-lg bg-red-50 text-red-800 border border-red-200 flex items-center">
-            <AlertCircle className="w-5 h-5 mr-3 text-red-600" />
-            <p>{error}</p>
-          </div>
-        )}
-
-        {/* Results Header */}
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-primary">
-            Available Bodyguards
-          </h2>
-          <div className="text-sm text-neutral-600">
-            {filteredBodyguards.length} of {bodyguards.length} bodyguards
-          </div>
-        </div>
-
-        {/* Bodyguards Grid */}
-        {filteredBodyguards.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredBodyguards.map((bodyguard) => (
-              <BodyguardCard
-                key={bodyguard.id}
-                bodyguard={bodyguard}
-                onBookClick={handleBookClick}
-                isCurrentlyBooked={isBodyguardCurrentlyBooked(bodyguard.id)}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-12">
-            <div className="mx-auto h-24 w-24 flex items-center justify-center rounded-full bg-neutral-100 mb-4">
-              <User className="h-12 w-12 text-neutral-400" />
-            </div>
-            <h3 className="text-lg font-medium text-neutral-900 mb-2">
-              No bodyguards found
-            </h3>
-            <p className="text-neutral-600">
-              {searchTerm || filterCity || filterSpecialization
-                ? 'Try adjusting your search filters.'
-                : 'No bodyguards are currently available.'}
-            </p>
-          </div>
-        )}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <div className="mx-auto h-24 w-24 flex items-center justify-center rounded-full bg-neutral-100 mb-4">
+                  <User className="h-12 w-12 text-neutral-400" />
+                </div>
+                <h3 className="text-lg font-medium text-neutral-900 mb-2">
+                  No bodyguards found
+                </h3>
+                <p className="text-neutral-600">
+                  {searchTerm || filterCity || filterSpecialization
+                    ? 'Try adjusting your search filters.'
+                    : 'No bodyguards are currently available.'}
+                </p>
+              </div>
+            )}
           </>
         ) : (
           <MyBookings />

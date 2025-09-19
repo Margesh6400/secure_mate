@@ -10,7 +10,9 @@ import {
   AlertCircle,
   CheckCircle,
   XCircle,
-  RefreshCw
+  RefreshCw,
+  Timer,
+  Sun
 } from 'lucide-react';
 import Button from './Button';
 
@@ -98,17 +100,19 @@ const MyBookings: React.FC = () => {
     };
   };
 
-  const getDuration = (start: string, end: string) => {
+  const getBookingType = (start: string, end: string) => {
     const startDate = new Date(start);
     const endDate = new Date(end);
     const durationHours = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60));
     
-    if (durationHours >= 24) {
-      const days = Math.floor(durationHours / 24);
-      const hours = durationHours % 24;
-      return `${days} day${days > 1 ? 's' : ''}${hours > 0 ? ` ${hours}h` : ''}`;
+    // Check if it's a full day booking (12 hours, 9 AM to 9 PM)
+    const startHour = startDate.getHours();
+    const endHour = endDate.getHours();
+    
+    if (durationHours === 12 && startHour === 9 && endHour === 21) {
+      return { type: 'Full Day', duration: '12 hours (9 AM - 9 PM)' };
     } else {
-      return `${durationHours} hour${durationHours > 1 ? 's' : ''}`;
+      return { type: 'Hourly', duration: `${durationHours} hour${durationHours > 1 ? 's' : ''}` };
     }
   };
 
@@ -184,7 +188,7 @@ const MyBookings: React.FC = () => {
           {bookings.map((booking) => {
             const startDateTime = formatDateTime(booking.booking_start);
             const endDateTime = formatDateTime(booking.booking_end);
-            const duration = getDuration(booking.booking_start, booking.booking_end);
+            const bookingTypeInfo = getBookingType(booking.booking_start, booking.booking_end);
             const upcoming = isUpcoming(booking.booking_start);
 
             return (
@@ -235,18 +239,42 @@ const MyBookings: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-neutral-600">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-neutral-600 mb-3">
                       <div className="flex items-center space-x-2">
                         <MapPin className="w-4 h-4" />
                         <span>{booking.bodyguard?.base_city}</span>
                       </div>
                       <div className="flex items-center space-x-2">
+                        {bookingTypeInfo.type === 'Full Day' ? (
+                          <Sun className="w-4 h-4" />
+                        ) : (
+                          <Timer className="w-4 h-4" />
+                        )}
+                        <span>{bookingTypeInfo.type}</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
                         <Clock className="w-4 h-4" />
-                        <span>{duration}</span>
+                        <span>{bookingTypeInfo.duration}</span>
                       </div>
                     </div>
 
-                    <div className="mt-3 p-3 bg-neutral-50 rounded-lg">
+                    {/* Booking Type Badge */}
+                    <div className="mb-3">
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                        bookingTypeInfo.type === 'Full Day' 
+                          ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                          : 'bg-purple-100 text-purple-800 border border-purple-200'
+                      }`}>
+                        {bookingTypeInfo.type === 'Full Day' ? (
+                          <Sun className="w-3 h-3 mr-1" />
+                        ) : (
+                          <Timer className="w-3 h-3 mr-1" />
+                        )}
+                        {bookingTypeInfo.type}
+                      </span>
+                    </div>
+
+                    <div className="bg-neutral-50 rounded-lg p-3">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
                         <div>
                           <span className="font-medium text-neutral-700">Start:</span>
