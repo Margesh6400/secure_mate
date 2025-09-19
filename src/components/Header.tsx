@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Menu, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { navLinks } from '../data';
 import { NavLink } from '../types/navigation';
 import logoImage from '../assets/images/Subtract.png';
@@ -105,13 +106,13 @@ const Header: React.FC = () => {
           aria-label="Main navigation"
         >
           {renderNavLinks(navLinks)}
-          <a 
-            href="#book-now" 
+          <Link 
+            to="/login" 
             className="transition-opacity duration-200 btn btn-primary hover:opacity-90"
             role="button"
           >
-            Book Now
-          </a>
+            Sign In
+          </Link>
         </nav>
         
         {/* Mobile Menu Button */}
@@ -145,14 +146,14 @@ const Header: React.FC = () => {
             aria-label="Mobile navigation"
           >
             {renderNavLinks(navLinks)}
-            <a
-              href="#book-now"
+            <Link
+              to="/login"
               className="w-full text-center transition-opacity duration-200 btn btn-primary hover:opacity-90"
               onClick={handleNavLinkClick}
               role="button"
             >
-              Book Now
-            </a>
+              Sign In
+            </Link>
           </nav>
         </div>
       </div>

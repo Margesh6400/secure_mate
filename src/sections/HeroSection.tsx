@@ -1,5 +1,6 @@
 import React from 'react';
 import { useInView } from 'react-intersection-observer';
+import { Link } from 'react-router-dom';
 import Button from '../components/Button';
 import { Shield, CheckCircle, Clock } from 'lucide-react';
 import logoImage from '../assets/images/Subtract.png';
@@ -47,9 +48,11 @@ const HeroSection: React.FC = () => {
             </p>
             
             <div className="flex flex-col justify-center gap-4 sm:flex-row lg:justify-start">
-              <Button variant="primary" size="lg">
-                Book a Bodyguard
-              </Button>
+              <Link to="/register">
+                <Button variant="primary" size="lg">
+                  Book a Bodyguard
+                </Button>
+              </Link>
               <Button variant="outline" size="lg">
                 Learn More
               </Button>
