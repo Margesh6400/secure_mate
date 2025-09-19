@@ -1,0 +1,31 @@
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Missing Supabase environment variables');
+}
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// Database types
+export interface BodyguardApplication {
+  id?: string;
+  full_name: string;
+  age: number;
+  gender: 'Male' | 'Female' | 'Other';
+  phone_number: string;
+  email_address?: string;
+  height_cm: number;
+  weight_kg: number;
+  years_experience: number;
+  specialization: string;
+  base_city: string;
+  hourly_rate: number;
+  full_day_rate: number;
+  government_id_url: string;
+  status?: 'pending' | 'approved' | 'rejected';
+  created_at?: string;
+  updated_at?: string;
+}

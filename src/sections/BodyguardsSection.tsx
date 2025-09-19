@@ -89,7 +89,9 @@ const BodyguardsSection: React.FC = () => {
             </div>
             
             <Button variant="primary" size="lg">
-              Become a Bodyguard
+              <a href="/become-bodyguard" className="block">
+                Become a Bodyguard
+              </a>
             </Button>
           </div>
         </div>
