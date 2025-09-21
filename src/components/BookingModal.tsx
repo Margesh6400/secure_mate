@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Calendar, Clock, IndianRupee, AlertCircle, CheckCircle, Timer, Sun, CreditCard } from 'lucide-react';
-import { Bodyguard } from '../lib/supabase';
+import { Bodyguard, supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 import Button from './Button';
 
 // Declare Razorpay interface for TypeScript
@@ -25,6 +26,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
   bodyguard,
   clientProfile
 }) => {
+  const { user } = useAuth();
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [bookingType, setBookingType] = useState<BookingType>('hourly');
   const [hours, setHours] = useState(1);
@@ -128,33 +130,40 @@ const BookingModal: React.FC<BookingModalProps> = ({
     setIsSubmitting(true);
     setMessage(null);
 
+    if (!user) {
+      setMessage({
+        type: 'error',
+        text: 'You must be logged in to create a booking.'
+      });
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       const { startTime: bookingStart, endTime: bookingEnd } = getBookingTimes();
       const totalAmount = calculateTotal();
 
       // Create booking in database
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/bookings`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-        },
-        body: JSON.stringify({
-          bodyguard_id: bodyguard.id,
-          booking_start: bookingStart,
-          booking_end: bookingEnd,
-          total_amount: totalAmount,
-          status: 'pending'
-        })
-      });
+      const { data: bookingData, error } = await supabase
+        .from('bookings')
+        .insert([
+          {
+            client_id: user.id,
+            bodyguard_id: bodyguard.id,
+            booking_start: bookingStart,
+            booking_end: bookingEnd,
+            total_amount: totalAmount,
+            status: 'pending'
+          }
+        ])
+        .select()
+        .single();
 
-      if (!response.ok) {
-        throw new Error('Failed to create booking');
+      if (error) {
+        throw new Error(`Failed to create booking: ${error.message}`);
       }
 
-      const bookingData = await response.json();
-      setBookingId(bookingData[0].id);
+      setBookingId(bookingData.id);
       setStep(3);
       setMessage(null);
     } catch (error) {
