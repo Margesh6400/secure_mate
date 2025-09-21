@@ -1,19 +1,20 @@
 import React, { useState } from 'react';
-import { X, Calendar, Clock, IndianRupee, AlertCircle, CheckCircle, Timer, Sun } from 'lucide-react';
+import { X, Calendar, Clock, IndianRupee, AlertCircle, CheckCircle, Timer, Sun, CreditCard } from 'lucide-react';
 import { Bodyguard } from '../lib/supabase';
 import Button from './Button';
+
+// Declare Razorpay interface for TypeScript
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
 
 interface BookingModalProps {
   isOpen: boolean;
   onClose: () => void;
   bodyguard: Bodyguard;
-  onBookingSubmit: (bookingData: {
-    bodyguardId: string;
-    startTime: string;
-    endTime: string;
-    totalAmount: number;
-    bookingType: 'hourly' | 'fullday';
-  }) => Promise<{ success: boolean; message: string }>;
+  clientProfile: { name: string; email?: string; phone?: string } | null;
 }
 
 type BookingType = 'hourly' | 'fullday';
@@ -22,16 +23,18 @@ const BookingModal: React.FC<BookingModalProps> = ({
   isOpen,
   onClose,
   bodyguard,
-  onBookingSubmit
+  clientProfile
 }) => {
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [bookingType, setBookingType] = useState<BookingType>('hourly');
   const [hours, setHours] = useState(1);
   const [startDate, setStartDate] = useState('');
   const [startTime, setStartTime] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [bookingId, setBookingId] = useState<string | null>(null);
 
   // Calculate total amount based on booking type
   const calculateTotal = () => {
@@ -71,8 +74,11 @@ const BookingModal: React.FC<BookingModalProps> = ({
   };
 
   const handleNext = () => {
-    if (step === 1) {
+    if (step === 1 && validateStep1()) {
       setStep(2);
+      setMessage(null);
+    } else if (step === 2 && validateStep2()) {
+      setStep(3);
       setMessage(null);
     }
   };
@@ -81,37 +87,44 @@ const BookingModal: React.FC<BookingModalProps> = ({
     if (step === 2) {
       setStep(1);
       setMessage(null);
+    } else if (step === 3) {
+      setStep(2);
+      setMessage(null);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Validation
+  const validateStep1 = () => {
+    return true; // Step 1 is just selecting booking type
+  };
+
+  const validateStep2 = () => {
     if (bookingType === 'hourly') {
       if (!startDate || !startTime) {
         setMessage({ type: 'error', text: 'Please select both date and time.' });
-        return;
+        return false;
       }
       
       const startDateTime = new Date(`${startDate}T${startTime}`);
       if (startDateTime < new Date()) {
         setMessage({ type: 'error', text: 'Start time cannot be in the past.' });
-        return;
+        return false;
       }
     } else {
       if (!selectedDate) {
         setMessage({ type: 'error', text: 'Please select a date.' });
-        return;
+        return false;
       }
       
       const selectedDateTime = new Date(`${selectedDate}T09:00:00`);
       if (selectedDateTime < new Date()) {
         setMessage({ type: 'error', text: 'Selected date cannot be in the past.' });
-        return;
+        return false;
       }
     }
+    return true;
+  };
 
+  const createBooking = async () => {
     setIsSubmitting(true);
     setMessage(null);
 
@@ -119,43 +132,178 @@ const BookingModal: React.FC<BookingModalProps> = ({
       const { startTime: bookingStart, endTime: bookingEnd } = getBookingTimes();
       const totalAmount = calculateTotal();
 
-      const result = await onBookingSubmit({
-        bodyguardId: bodyguard.id,
-        startTime: bookingStart,
-        endTime: bookingEnd,
-        totalAmount,
-        bookingType
+      // Create booking in database
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/bookings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({
+          bodyguard_id: bodyguard.id,
+          booking_start: bookingStart,
+          booking_end: bookingEnd,
+          total_amount: totalAmount,
+          status: 'pending'
+        })
       });
 
-      setMessage({
-        type: result.success ? 'success' : 'error',
-        text: result.message
-      });
-
-      if (result.success) {
-        // Reset form and close modal after success
-        setTimeout(() => {
-          handleClose();
-        }, 2000);
+      if (!response.ok) {
+        throw new Error('Failed to create booking');
       }
+
+      const bookingData = await response.json();
+      setBookingId(bookingData[0].id);
+      setStep(3);
+      setMessage(null);
     } catch (error) {
+      console.error('Error creating booking:', error);
       setMessage({
         type: 'error',
-        text: 'An unexpected error occurred. Please try again.'
+        text: 'Failed to create booking. Please try again.'
       });
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const handlePayment = async () => {
+    if (!bookingId) {
+      setMessage({ type: 'error', text: 'Booking not created. Please try again.' });
+      return;
+    }
+
+    setIsProcessingPayment(true);
+    setMessage(null);
+
+    try {
+      const totalAmount = calculateTotal();
+
+      // Create Razorpay order
+      const orderResponse = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-razorpay-order`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({
+          bookingId,
+          amount: totalAmount,
+          currency: 'INR'
+        })
+      });
+
+      if (!orderResponse.ok) {
+        throw new Error('Failed to create payment order');
+      }
+
+      const orderData = await orderResponse.json();
+      
+      if (!orderData.success) {
+        throw new Error(orderData.error || 'Failed to create payment order');
+      }
+
+      // Load Razorpay script if not already loaded
+      if (!window.Razorpay) {
+        const script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.async = true;
+        document.body.appendChild(script);
+        
+        await new Promise((resolve) => {
+          script.onload = resolve;
+        });
+      }
+
+      // Initialize Razorpay checkout
+      const options = {
+        key: 'rzp_test_your_key_id', // Replace with your Razorpay key ID
+        amount: orderData.order.amount,
+        currency: orderData.order.currency,
+        name: 'SecureMate',
+        description: `Booking ${bodyguard.name} - ${bookingType === 'hourly' ? `${hours} hour(s)` : 'Full Day'}`,
+        order_id: orderData.order.id,
+        handler: async (response: any) => {
+          try {
+            // Verify payment
+            const verifyResponse = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-razorpay-payment`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+              },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature
+              })
+            });
+
+            const verifyData = await verifyResponse.json();
+            
+            if (verifyData.success) {
+              setMessage({
+                type: 'success',
+                text: 'Payment successful! Your booking has been confirmed.'
+              });
+              
+              // Close modal after success
+              setTimeout(() => {
+                handleClose();
+              }, 2000);
+            } else {
+              throw new Error(verifyData.message || 'Payment verification failed');
+            }
+          } catch (error) {
+            console.error('Payment verification error:', error);
+            setMessage({
+              type: 'error',
+              text: 'Payment verification failed. Please contact support.'
+            });
+          }
+        },
+        prefill: {
+          name: clientProfile?.name || '',
+          email: clientProfile?.email || '',
+          contact: clientProfile?.phone || ''
+        },
+        theme: {
+          color: '#1B2E59'
+        },
+        modal: {
+          ondismiss: () => {
+            setMessage({
+              type: 'error',
+              text: 'Payment cancelled. You can retry payment anytime.'
+            });
+          }
+        }
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+
+    } catch (error) {
+      console.error('Payment error:', error);
+      setMessage({
+        type: 'error',
+        text: 'Failed to initiate payment. Please try again.'
+      });
+    } finally {
+      setIsProcessingPayment(false);
+    }
+  };
+
   const handleClose = () => {
-    if (!isSubmitting) {
+    if (!isSubmitting && !isProcessingPayment) {
       setStep(1);
       setBookingType('hourly');
       setHours(1);
       setStartDate('');
       setStartTime('');
       setSelectedDate('');
+      setBookingId(null);
       setMessage(null);
       onClose();
     }
@@ -221,7 +369,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
               </div>
               <span className="text-sm font-medium">Booking Type</span>
             </div>
-            <div className={`w-16 h-0.5 ${step >= 2 ? 'bg-primary' : 'bg-neutral-200'}`}></div>
+            <div className={`w-12 h-0.5 ${step >= 2 ? 'bg-primary' : 'bg-neutral-200'}`}></div>
             <div className={`flex items-center space-x-2 ${step >= 2 ? 'text-primary' : 'text-neutral-400'}`}>
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
                 step >= 2 ? 'bg-primary text-white' : 'bg-neutral-200 text-neutral-500'
@@ -229,6 +377,15 @@ const BookingModal: React.FC<BookingModalProps> = ({
                 2
               </div>
               <span className="text-sm font-medium">Date & Time</span>
+            </div>
+            <div className={`w-12 h-0.5 ${step >= 3 ? 'bg-primary' : 'bg-neutral-200'}`}></div>
+            <div className={`flex items-center space-x-2 ${step >= 3 ? 'text-primary' : 'text-neutral-400'}`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
+                step >= 3 ? 'bg-primary text-white' : 'bg-neutral-200 text-neutral-500'
+              }`}>
+                3
+              </div>
+              <span className="text-sm font-medium">Payment</span>
             </div>
           </div>
         </div>
@@ -326,7 +483,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
 
         {/* Step 2: Date & Time Selection */}
         {step === 2 && (
-          <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          <div className="p-6 space-y-6">
             <div>
               <h4 className="text-lg font-semibold text-primary mb-4">
                 {bookingType === 'hourly' ? 'Select Date, Time & Duration' : 'Select Date'}
@@ -451,25 +608,123 @@ const BookingModal: React.FC<BookingModalProps> = ({
                 Back
               </Button>
               <Button
-                type="submit"
+                type="button"
                 variant="primary"
                 disabled={isSubmitting}
+                onClick={createBooking}
                 className="flex-1 group"
               >
                 {isSubmitting ? (
                   <>
                     <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Booking...
+                    Creating...
                   </>
                 ) : (
                   <>
                     <Calendar className="w-4 h-4 mr-2 transition-transform duration-300 group-hover:scale-110" />
-                    Confirm Booking
+                    Continue to Payment
                   </>
                 )}
               </Button>
             </div>
-          </form>
+          </div>
+        )}
+
+        {/* Step 3: Payment */}
+        {step === 3 && (
+          <div className="p-6 space-y-6">
+            <div>
+              <h4 className="text-lg font-semibold text-primary mb-4">
+                Complete Payment
+              </h4>
+              <p className="text-sm text-neutral-600 mb-6">
+                Secure payment powered by Razorpay. Your booking will be confirmed after successful payment.
+              </p>
+            </div>
+
+            {/* Payment Summary */}
+            <div className="bg-gradient-to-r from-primary/5 to-accent/5 rounded-xl p-6">
+              <h4 className="font-semibold text-primary mb-4 flex items-center">
+                <CreditCard className="w-5 h-5 mr-2" />
+                Payment Summary
+              </h4>
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-neutral-600">Bodyguard:</span>
+                  <span className="font-medium">{bodyguard.name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-neutral-600">Service Type:</span>
+                  <span className="font-medium capitalize">{bookingType === 'hourly' ? 'Hourly' : 'Full Day'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-neutral-600">Duration:</span>
+                  <span className="font-medium">{getDurationText()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-neutral-600">Rate:</span>
+                  <span className="font-medium">
+                    ₹{bookingType === 'hourly' ? bodyguard.pricing_hourly : bodyguard.pricing_daily}
+                    {bookingType === 'hourly' ? '/hour' : '/day'}
+                  </span>
+                </div>
+                <div className="border-t border-neutral-200 pt-3 mt-3">
+                  <div className="flex justify-between items-center">
+                    <span className="font-semibold text-primary">Total Amount:</span>
+                    <div className="flex items-center space-x-1">
+                      <IndianRupee className="w-5 h-5 text-primary" />
+                      <span className="text-xl font-bold text-primary">
+                        {calculateTotal().toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Payment Methods Info */}
+            <div className="bg-blue-50 rounded-lg p-4">
+              <h5 className="font-medium text-blue-800 mb-2">Accepted Payment Methods</h5>
+              <div className="text-sm text-blue-700">
+                <p>• Credit/Debit Cards (Visa, Mastercard, RuPay)</p>
+                <p>• UPI (Google Pay, PhonePe, Paytm)</p>
+                <p>• Net Banking</p>
+                <p>• Wallets (Paytm, Mobikwik, etc.)</p>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex space-x-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleBack}
+                disabled={isProcessingPayment}
+                className="flex-1"
+              >
+                Back
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                disabled={isProcessingPayment}
+                onClick={handlePayment}
+                className="flex-1 group"
+              >
+                {isProcessingPayment ? (
+                  <>
+                    <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <CreditCard className="w-4 h-4 mr-2 transition-transform duration-300 group-hover:scale-110" />
+                    Pay ₹{calculateTotal().toLocaleString()}
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
         )}
       </div>
     </div>

@@ -73,6 +73,21 @@ export interface Booking {
   created_at?: string;
   updated_at?: string;
   bodyguard?: Bodyguard; // For joined queries
+  payment?: Payment; // For joined queries
+}
+
+export interface Payment {
+  id: string;
+  booking_id: string;
+  client_id: string;
+  amount: number;
+  currency: string;
+  status: 'created' | 'success' | 'failed';
+  razorpay_order_id: string;
+  razorpay_payment_id?: string;
+  razorpay_signature?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 // Auth helper functions

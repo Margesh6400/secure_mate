@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase, type Bodyguard, type Client, type Booking } from '../lib/supabase';
+import { supabase, type Bodyguard, type Client, type Booking, type Payment } from '../lib/supabase';
 import BodyguardCard from '../components/BodyguardCard';
 import BookingModal from '../components/BookingModal';
 import MyBookings from '../components/MyBookings';
@@ -143,74 +143,9 @@ const DashboardPage: React.FC = () => {
       )
       .subscribe();
 
-    return () => {
-      bookingsSubscription.unsubscribe();
-    };
-  }, [user]);
-
-  // Handle booking submission with conflict checking
-  const handleBookingSubmit = async (bookingData: {
-    bodyguardId: string;
-    startTime: string;
-    endTime: string;
-    totalAmount: number;
-    bookingType: 'hourly' | 'fullday';
-  }): Promise<{ success: boolean; message: string }> => {
-    if (!user) {
-      return { success: false, message: 'You must be logged in to book a bodyguard.' };
-    }
-
-    try {
-      // Check for conflicts using the database function
-      const { data: conflictCheck, error: conflictError } = await supabase
-        .rpc('check_booking_conflict', {
-          p_bodyguard_id: bookingData.bodyguardId,
-          p_start: bookingData.startTime,
-          p_end: bookingData.endTime
-        });
-
-      if (conflictError) {
-        console.error('Error checking conflicts:', conflictError);
-        return { success: false, message: 'Failed to check availability. Please try again.' };
-      }
-
-      if (conflictCheck) {
-        return { 
-          success: false, 
-          message: 'This bodyguard is already booked during the selected time. Please choose a different time slot.' 
-        };
-      }
-
-      // Create the booking
-      const { error } = await supabase
-        .from('bookings')
-        .insert([
-          {
-            client_id: user.id,
-            bodyguard_id: bookingData.bodyguardId,
-            booking_start: bookingData.startTime,
-            booking_end: bookingData.endTime,
-            total_amount: bookingData.totalAmount,
-            status: 'pending'
-          }
-        ]);
-
-      if (error) {
-        console.error('Booking error:', error);
-        return { success: false, message: 'Failed to create booking. Please try again.' };
-      }
-
-      // Refresh data after successful booking
-      fetchData();
-
-      return { 
-        success: true, 
-        message: `${bookingData.bookingType === 'hourly' ? 'Hourly' : 'Full day'} booking request submitted successfully! You will be contacted by the bodyguard soon.` 
-      };
-    } catch (error) {
-      console.error('Booking error:', error);
-      return { success: false, message: 'An unexpected error occurred. Please try again.' };
-    }
+  // Handle sign out
+  const handleSignOut = async () => {
+    await signOut();
   };
 
   // Handle book button click
@@ -446,7 +381,7 @@ const DashboardPage: React.FC = () => {
           isOpen={isBookingModalOpen}
           onClose={handleCloseBookingModal}
           bodyguard={selectedBodyguard}
-          onBookingSubmit={handleBookingSubmit}
+          clientProfile={clientProfile}
         />
       )}
     </div>

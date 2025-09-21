@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase, type Booking } from '../lib/supabase';
+import { supabase, type Booking, type Payment } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { 
   Calendar, 
@@ -12,7 +12,8 @@ import {
   XCircle,
   RefreshCw,
   Timer,
-  Sun
+  Sun,
+  CreditCard
 } from 'lucide-react';
 import Button from './Button';
 
@@ -33,7 +34,8 @@ const MyBookings: React.FC = () => {
         .from('bookings')
         .select(`
           *,
-          bodyguard:bodyguards(*)
+          bodyguard:bodyguards(*),
+          payment:payments(*)
         `)
         .eq('client_id', user.id)
         .order('booking_start', { ascending: false });
@@ -79,6 +81,28 @@ const MyBookings: React.FC = () => {
         return 'bg-red-100 text-red-800 border-red-200';
       case 'completed':
         return 'bg-blue-100 text-blue-800 border-blue-200';
+      default:
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+    }
+  };
+
+  const getPaymentStatusIcon = (status: string) => {
+    switch (status) {
+      case 'success':
+        return <CheckCircle className="w-4 h-4 text-green-500" />;
+      case 'failed':
+        return <XCircle className="w-4 h-4 text-red-500" />;
+      default:
+        return <Clock className="w-4 h-4 text-yellow-500" />;
+    }
+  };
+
+  const getPaymentStatusColor = (status: string) => {
+    switch (status) {
+      case 'success':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'failed':
+        return 'bg-red-100 text-red-800 border-red-200';
       default:
         return 'bg-yellow-100 text-yellow-800 border-yellow-200';
     }
@@ -198,9 +222,17 @@ const MyBookings: React.FC = () => {
               >
                 {/* Status Badge */}
                 <div className="absolute top-4 right-4">
-                  <div className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(booking.status)}`}>
-                    {getStatusIcon(booking.status)}
-                    <span className="ml-1 capitalize">{booking.status}</span>
+                  <div className="flex flex-col space-y-2">
+                    <div className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(booking.status)}`}>
+                      {getStatusIcon(booking.status)}
+                      <span className="ml-1 capitalize">{booking.status}</span>
+                    </div>
+                    {booking.payment && (
+                      <div className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${getPaymentStatusColor(booking.payment.status)}`}>
+                        {getPaymentStatusIcon(booking.payment.status)}
+                        <span className="ml-1 capitalize">Payment {booking.payment.status}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -295,6 +327,38 @@ const MyBookings: React.FC = () => {
                       <div className="mt-3 p-3 bg-blue-50 rounded-lg">
                         <span className="font-medium text-blue-800">Notes:</span>
                         <p className="text-blue-700 text-sm mt-1">{booking.notes}</p>
+                      </div>
+                    )}
+
+                    {/* Payment Information */}
+                    {booking.payment && (
+                      <div className="mt-3 p-3 bg-neutral-50 rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-medium text-neutral-700 flex items-center">
+                            <CreditCard className="w-4 h-4 mr-2" />
+                            Payment Details
+                          </span>
+                          <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getPaymentStatusColor(booking.payment.status)}`}>
+                            {getPaymentStatusIcon(booking.payment.status)}
+                            <span className="ml-1 capitalize">{booking.payment.status}</span>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div>
+                            <span className="text-neutral-500">Amount:</span>
+                            <div className="font-medium">₹{booking.payment.amount.toLocaleString()}</div>
+                          </div>
+                          <div>
+                            <span className="text-neutral-500">Currency:</span>
+                            <div className="font-medium">{booking.payment.currency}</div>
+                          </div>
+                          {booking.payment.razorpay_payment_id && (
+                            <div className="col-span-2">
+                              <span className="text-neutral-500">Payment ID:</span>
+                              <div className="font-mono text-xs">{booking.payment.razorpay_payment_id}</div>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
 
