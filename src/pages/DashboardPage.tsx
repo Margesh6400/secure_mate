@@ -45,8 +45,28 @@ const DashboardPage: React.FC = () => {
 
         if (error) {
           console.error('Error fetching client profile:', error);
-        } else {
+        } else if (data) {
           setClientProfile(data);
+        } else {
+          // No client profile exists, create one
+          const defaultName = user.email?.split('@')[0] || 'User';
+          const { data: newProfile, error: createError } = await supabase
+            .from('clients')
+            .insert([
+              {
+                id: user.id,
+                name: defaultName,
+                preferable_area: 'Ahmedabad' // Default to first available city
+              }
+            ])
+            .select()
+            .single();
+
+          if (createError) {
+            console.error('Error creating client profile:', createError);
+          } else {
+            setClientProfile(newProfile);
+          }
         }
       } catch (error) {
         console.error('Error fetching client profile:', error);
