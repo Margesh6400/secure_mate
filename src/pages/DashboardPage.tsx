@@ -143,6 +143,11 @@ const DashboardPage: React.FC = () => {
       )
       .subscribe();
 
+    return () => {
+      bookingsSubscription.unsubscribe();
+    };
+  }, [user]);
+
   // Handle sign out
   const handleSignOut = async () => {
     await signOut();
@@ -159,10 +164,6 @@ const DashboardPage: React.FC = () => {
     setSelectedBodyguard(null);
   };
 
-  // Handle sign out
-  const handleSignOut = async () => {
-    await signOut();
-  };
 
   // Filter bodyguards
   const filteredBodyguards = bodyguards.filter(bodyguard => {
