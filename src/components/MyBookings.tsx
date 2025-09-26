@@ -266,7 +266,7 @@ const MyBookings: React.FC = () => {
                       <div className="flex items-center space-x-1 text-primary">
                         <IndianRupee className="w-4 h-4" />
                         <span className="font-bold">
-                          {booking.total_amount.toLocaleString()}
+                          {(booking.total_amount ?? 0).toLocaleString()}
                         </span>
                       </div>
                     </div>
