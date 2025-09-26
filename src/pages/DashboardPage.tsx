@@ -292,7 +292,7 @@ const DashboardPage: React.FC = () => {
                     onChange={(e) => setFilterCity(e.target.value)}
                     className="block w-full px-3 py-3 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent bg-white/70 backdrop-blur-sm min-w-[150px]"
                   >
-                    <option value="">All Cities</option>
+                    <option value="">Across City</option>
                     {cities.map(city => (
                       <option key={city} value={city}>{city}</option>
                     ))}
